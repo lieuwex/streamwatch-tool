@@ -275,19 +275,22 @@ async fn main() -> Result<()> {
                 .long("dry-run")
                 .help("Don't actually execute filesystem operations"),
         )
-        .arg(
-            Arg::with_name("DATABASE")
-                .help("Set the database file")
-                .required(true)
-                .index(1),
+        .subcommand(
+            SubCommand::with_name("trimlw")
+                .about("Trim lekker wachten")
+                .arg(
+                    Arg::with_name("database")
+                        .help("Set the database file")
+                        .required(true)
+                        .index(1),
+                )
+                .arg(
+                    Arg::with_name("streams")
+                        .help("Set the streams dir")
+                        .required(true)
+                        .index(2),
+                ),
         )
-        .arg(
-            Arg::with_name("STREAMS")
-                .help("Set the streams dir")
-                .required(true)
-                .index(2),
-        )
-        .subcommand(SubCommand::with_name("trimlw").about("Trim lekker wachten"))
         .get_matches();
 
     let settings = Settings {
@@ -295,16 +298,22 @@ async fn main() -> Result<()> {
         dry_run: matches.is_present("dry_run"),
     };
 
-    let database_path = matches.value_of("DATABASE").unwrap();
-    let mut conn = SqliteConnection::connect(&format!("sqlite:{}", database_path))
-        .await
-        .unwrap();
+    match matches.subcommand() {
+        ("trimlw", Some(subcmd)) => {
+            let database_path = subcmd.value_of("database").unwrap();
+            let mut conn = SqliteConnection::connect(&format!("sqlite:{}", database_path))
+                .await
+                .unwrap();
 
-    let folder = matches.value_of("STREAMS").unwrap();
-    let folder = Path::new(folder);
+            let folder = subcmd.value_of("streams").unwrap();
+            let folder = Path::new(folder);
 
-    if matches.subcommand_matches("trimlw").is_some() {
-        trim_lw(&mut conn, &settings, folder).await?;
+            trim_lw(&mut conn, &settings, folder).await?;
+        }
+
+        _ => {
+            eprintln!("{}", matches.usage());
+        }
     }
 
     Ok(())
