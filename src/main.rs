@@ -1,9 +1,11 @@
 #![feature(exit_status_error)]
 
 mod common;
+mod merge;
 mod trim;
 
 use crate::common::*;
+use crate::merge::merge;
 use crate::trim::trim_lw;
 
 use std::path::Path;
@@ -47,6 +49,17 @@ async fn main() -> Result<()> {
                         .index(2),
                 ),
         )
+        .subcommand(
+            SubCommand::with_name("merge")
+                .about("Merge multiple streams to one")
+                .arg(
+                    Arg::with_name("streams")
+                        .help("The files to merge")
+                        .required(true)
+                        .index(1)
+                        .multiple(true),
+                ),
+        )
         .get_matches();
 
     let settings = Settings {
@@ -65,6 +78,11 @@ async fn main() -> Result<()> {
             let folder = Path::new(folder);
 
             trim_lw(&mut conn, &settings, folder).await?;
+        }
+
+        ("merge", Some(subcmd)) => {
+            let streams: Vec<&str> = subcmd.values_of("streams").unwrap().collect();
+            merge(&settings, &streams).await?;
         }
 
         _ => {
